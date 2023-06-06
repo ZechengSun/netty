@@ -1,0 +1,77 @@
+原理
+这里简要介绍下实现原理。
+
+复制功能
+首先不能框选代码的问题比较好解决，因为我发现是 CSS 控制的，我们把代码pre和code标签的user-select样式修改掉。
+
+/* custom.css */
+#content_views pre,
+#content_views pre code {
+    -webkit-touch-callout: auto !important;
+    -webkit-user-select: auto !important;
+    -khtml-user-select: auto !important;
+    -moz-user-select: auto !important;
+    -ms-user-select: auto !important;
+    user-select: auto !important;
+}
+然后处理代码块右上角的复制按钮，在未登陆状态下点击这个复制按钮后会触发登陆弹窗，所以我们从控制 js 入手。
+
+找到所有的复制按钮
+将按钮上的点击事件移除掉，克隆按钮再替回去
+重新添加点击事件
+下面贴一段核心代码
+
+// content-script.js
+buttons.forEach((btn) => {
+    // 更改标题
+    btn.dataset.title = "复制";
+
+    // 移除点击事件
+    btn.setAttribute("onclick", "");
+
+    // 克隆按钮
+    elClone = btn.cloneNode(true);
+
+    // 替回按钮
+    btn.parentNode.replaceChild(elClone, btn);
+
+    // 重新添加点击事件
+    elClone.addEventListener("click", (e) => {
+        // 实现复制
+        const parentPreBlock = e.target.closest("pre");
+        const codeBlock = $$("code", parentPreBlock);
+        copy(codeBlock.innerText);
+
+        e.target.dataset.title = "复制成功";
+        setTimeout(() => {
+            e.target.dataset.title = "复制";
+        }, 1000);
+        e.stopPropagation();
+        e.preventDefault();
+    });
+});
+去除登陆弹窗
+直接将登陆弹窗通过 CSS 隐藏
+
+.passport-login-container {
+    display: none !important;
+}
+去除阅读更多提示
+首先将关注博主即可阅读全文所在的容器去除掉，隐藏或者降低层级都行，我这里用的是降低层级。因为还有个 VIP 文章的拦截容器和这个阅读全文类似，这里需要排除下，所以这里用 js 去添加 CSS 代码
+
+let readMore = document.querySelector(".btn-readmore");
+let style = `
+  .hide-article-box{
+    z-index: -1 !important;
+  }
+  `;
+if (readMore) {
+    addCSS(style);
+}
+再设置 CSS 将文章的高度放开
+
+/* 关注博主才能查看文章，开放文章 */
+#article_content {
+    height: auto !important;
+}
+因为这款插件的源代码是开放的，完整代码大家可以直接看我的 Github 仓库：https://github.com/openHacking/copy-csdn。
